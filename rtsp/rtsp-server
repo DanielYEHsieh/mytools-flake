@@ -1,0 +1,138 @@
+readonly PROG="$0"
+usage() {
+        cat <<EOF
+Usage: $PROG <work-dir> <streams>...
+
+You must speicify a working directory <work-dir> for the server to store
+temporary files like downloaded videos.
+
+You could have multiple streams. Each video stream is in one of the following formats:
+ - file://<path-to-file>
+ - https://www.youtube.com/watch?v=AVBHlKJp9Mo
+  Youtube video URLs
+EOF
+}
+
+# prepare_stream <n> <url>
+prepare_stream() {
+  local video_dir="$WORK_DIR/videos"
+  local dst_file="$video_dir/clip$1"
+
+  mkdir -p "$video_dir"
+  echo "Preparing clip$1:"
+  case "$2" in
+    "")
+      echo empty stream for "$1"
+      ;;
+    file://*)
+      src_file="${2:7}"
+
+      echo "Copying file: $src_file"
+      cp "$src_file" "$dst_file"
+      ;;
+    https://*)
+      hash=$(md5sum <<<"$2"|cut -d' ' -f1)
+      cached_file_base="$hash.mp4"
+      cached_file="$video_dir/$cached_file_base"
+
+      if [ -f "$cached_file" ]; then
+        echo "Using cached youtube video: $cached_file"
+        ln -sfn "$cached_file_base" "$dst_file"
+      else
+        echo "Downloading youtube video $2 as $cached_file"
+        youtube-dl -o "$video_dir/$hash" --recode-video mp4 "$2"
+        local
+        ln -sfn "$cached_file_base" "$dst_file"
+      fi
+      echo prepare youtube "$1 => $2"
+      ;;
+  esac
+}
+
+# gen_config <n> <output>
+gen_config() {
+  local n="$1"
+  local output="$2"
+
+  cat > "$output" <<EOF
+api: false
+authMethods:
+  - basic
+  - digest
+encryption: no
+hlsDisable: true
+logDestinations:
+  - stdout
+logLevel: debug
+metrics: false
+pprof: false
+protocols:
+  - udp
+readBufferSize: 2048
+readTimeout: "10s"
+rtcpAddress: ":8001"
+rtmpDisable: true
+rtpAddress: ":8000"
+rtspAddress: ":8554"
+rtspDisable: false
+writeTimeout: "10s"
+paths:
+  all:
+    disablePublisherOverride: false
+    publishIPs: [ "127.0.0.1" ]
+    publishPass: "WxcMCe7f1JYd2zg"
+    publishUser: pub
+    readIPs: []
+    source: publisher
+EOF
+
+  if [ "$n" -gt 0 ]; then
+    for i in $(seq 0 $((n-1))); do
+      cat >> "$output" <<EOF
+  clip$i:
+    disablePublisherOverride: false
+    publishIPs: [ "127.0.0.1" ]
+    publishPass: "WxcMCe7f1JYd2zg"
+    publishUser: pub
+    readIPs: []
+    runOnInit: "ffmpeg -re -stream_loop -1 -i videos/clip$i -c copy -f rtsp rtsp://pub:WxcMCe7f1JYd2zg@localhost:\$RTSP_PORT/\$RTSP_PATH"
+    runOnInitRestart: true
+    source: publisher
+EOF
+    done
+  fi
+}
+
+[ $# -ge 1 ] || { usage; exit 1; }
+
+readonly WORK_DIR="$1"
+
+[ -d "$WORK_DIR" ] || mkdir -p "$WORK_DIR"
+
+shift
+
+if [ $# -eq 0 ]; then
+  read -r -p "You have no streams, are you sure?(y/N)" ans
+  case "$ans" in
+    y|Y)
+      echo "I will contiune with no streams."
+      ;;
+    *)
+      echo "Aborted!"
+      exit 1;
+  esac
+fi
+
+if [ $# -gt 0 ]; then
+  for i in $(seq $#); do
+    if [ "$i" -le $# ]; then
+      url="${!i}"
+    else
+      url=""
+    fi
+    prepare_stream "$((i - 1))" "$url"
+  done
+fi
+
+gen_config $# "$WORK_DIR/rtsp-simple-server.yml"
+(cd "$WORK_DIR"; rtsp-simple-server)
