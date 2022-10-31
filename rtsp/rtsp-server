@@ -40,7 +40,6 @@ prepare_stream() {
         ln -sfn "$cached_file_base" "$dst_file"
       else
         echo "Downloading youtube checking -f video $2 as $cached_file"
-        youtube-dl -f "$2"
         youtube-dl -o "$video_dir/$hash" --recode-video mp4 "$2"
         local
         ln -sfn "$cached_file_base" "$dst_file"
@@ -96,7 +95,7 @@ EOF
     publishPass: "WxcMCe7f1JYd2zg"
     publishUser: pub
     readIPs: []
-    runOnInit: "ffmpeg -re -stream_loop -1 -i videos/clip$i -c copy -r 10  -f rtsp rtsp://pub:WxcMCe7f1JYd2zg@localhost:\$RTSP_PORT/\$RTSP_PATH"
+    runOnInit: "ffmpeg -re -stream_loop -1 -i videos/clip$i -c copy -r 10  -filter:v fps=fps=10  -f rtsp rtsp://pub:WxcMCe7f1JYd2zg@localhost:\$RTSP_PORT/\$RTSP_PATH"
     runOnInitRestart: true
     source: publisher
 EOF
