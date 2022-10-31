@@ -39,7 +39,7 @@ prepare_stream() {
         echo "Using cached youtube video: $cached_file"
         ln -sfn "$cached_file_base" "$dst_file"
       else
-        echo "Downloading youtube video $2 as $cached_file"
+        echo "Downloading youtube checking -f video $2 as $cached_file"
         youtube-dl -f "$2"
         youtube-dl -o "$video_dir/$hash" --recode-video mp4 "$2"
         local
