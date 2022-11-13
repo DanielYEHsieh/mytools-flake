@@ -95,7 +95,7 @@ EOF
     publishPass: "WxcMCe7f1JYd2zg"
     publishUser: pub
     readIPs: []
-    runOnInit: "ffmpeg -re -stream_loop -1 -i videos/clip$i -c:v libx264  -r 10  -filter:v fps=fps=10  -f rtsp rtsp://pub:WxcMCe7f1JYd2zg@localhost:\$RTSP_PORT/\$RTSP_PATH"
+    runOnInit: "ffmpeg -re -stream_loop -1 -i videos/clip$i -c:v libx264  -r 12  -filter:v fps=fps=12  -f rtsp rtsp://pub:WxcMCe7f1JYd2zg@localhost:\$RTSP_PORT/\$RTSP_PATH"
     runOnInitRestart: true
     source: publisher
 EOF
